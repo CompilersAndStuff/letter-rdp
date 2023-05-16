@@ -55,6 +55,7 @@ class Parser {
    *   : IfStatement
    *   : IterationStatement
    *   : FunctionDeclarationStatement
+   *   : ClassDeclarationStatement
    *   ;
    */
   Statement() {
@@ -73,11 +74,46 @@ class Parser {
         return this.IterationStatement();
       case 'def':
         return this.FunctionDeclarationStatement();
+      case 'class':
+        return this.ClassDeclarationStatement();
       case 'return':
         return this.ReturnStatement();
       default:
         return this.ExpressionStatement();
     }
+  }
+
+  /**
+   * ClassDeclarationStatement
+   *   : 'class' Identifier OptClassExtends BlockStatement
+   *   ;*/
+  ClassDeclarationStatement() {
+    this._eat('class');
+    const id = this.Identifier();
+
+
+    const superClass =
+          this._lookahead.type === 'extends' ? this.ClassExtends() : null;
+
+    const body = this.BlockStatement();
+
+    return {
+      type: 'ClassDeclaration',
+      id,
+      superClass,
+      body
+    }
+  }
+
+  /**
+   * OptClassExtends
+   *   : Identifier
+   *   | OptClassExtends ',' Identifier
+   *   ;
+   */
+  ClassExtends() {
+    this._eat('extends');
+    return this.Identifier();
   }
 
   /**
@@ -424,7 +460,7 @@ class Parser {
    * Extra check whether it's valid assignment target.
    */
   _checkValidAssignmentTarget(node) {
-    if (node.type === 'Identifier') {
+    if (node.type === 'Identifier' || node.type === 'MemberExpression') {
       return node;
     }
     throw new SyntaxError('Invalid left-hand side in assignment expression');
@@ -579,11 +615,122 @@ class Parser {
 
   /**
    * LeftHandSideExpression
-   *   : PrimaryExpression
+   *   : MemberExpression
    *   ;
    */
   LeftHandSideExpression() {
-    return this.PrimaryExpression();
+    return this.CallMemberExpression();
+  }
+
+  /**
+   * CallMemberExpression
+   *   : MemberExpression
+   *   | CallExpression
+   *   ;
+   */
+  CallMemberExpression() {
+    if (this._lookahead.type === 'super') {
+      return this._CallExpression(this.Super());
+    }
+
+    const member = this.MemberExpression();
+
+    if (this._lookahead.type === '(') {
+      return this._CallExpression(member);
+    }
+
+    return member;
+  }
+
+  /**
+   * CallExpression
+   *   : Callee Arguments
+   *   ;
+   *
+   * Callee
+   *   : MemberExpression
+   *   | CallExpression
+   *   ;
+   */
+  _CallExpression(callee) {
+    let callExpression = {
+      type: 'CallExpression',
+      callee,
+      arguments: this.Arguments(),
+    };
+
+    if (this._lookahead.type === '(') {
+      callExpression = this._CallExpression(callExpression);
+    }
+
+    return callExpression;
+  }
+
+  /**
+   * Arguments
+   *   : '(' OptArgumentList ')'
+   *   ;
+   */
+  Arguments(){
+    this._eat('(');
+    const argumentList = this._lookahead.type !== ')' ? this.ArgumentList() : [];
+    this._eat(')');
+
+    return argumentList;
+  }
+
+  /**
+   * ArgumentList
+   *   : AssignmentExpression
+   *   : ArgumentList ',' AssignmentExpression
+   *   ;
+   */
+  ArgumentList() {
+    const argumentList = [];
+
+    do {
+      argumentList.push(this.Expression());
+    } while (this._lookahead.type === ',' && this._eat(','))
+
+    return argumentList;
+  }
+
+  /**
+   * MemberExpression
+   *   : PrimaryExpression
+   *   | MemberExpression '.' Identifier
+   *   | MemberExpression '[' Expression ']'
+   *   ;
+   */
+  MemberExpression() {
+    let object = this.PrimaryExpression();
+
+    while (this._lookahead.type === '.' || this._lookahead.type === '[') {
+      if (this._lookahead.type === '.') {
+        this._eat('.');
+        const property = this.Identifier();
+        object = {
+          type: 'MemberExpression',
+          computed: false,
+          object,
+          property
+        }
+      }
+
+      if (this._lookahead.type === '[') {
+        this._eat('[');
+        const property = this.Expression();
+        this._eat(']');
+        object = {
+          type: 'MemberExpression',
+          computed: true,
+          object,
+          property
+        }
+      }
+    }
+
+    return object;
   }
 
 
@@ -592,6 +739,8 @@ class Parser {
    *   : Literal
    *   | ParenthesizedExpression
    *   | Identifier
+   *   | ThisExpression
+   *   | NewExpression
    *   ;
    */
   PrimaryExpression() {
@@ -604,8 +753,50 @@ class Parser {
         return this.ParenthesizedExpression();
       case 'IDENTIFIER':
         return this.Identifier();
+      case 'this':
+        return this.ThisExpression();
+      case 'new':
+        return this.NewExpression();
       default:
         return this.LeftHandSideExpression();
+    }
+  }
+
+  /**
+   * NewExpression
+   *   : 'new' MemberExpression Arguments
+   *   ;
+   */
+  NewExpression() {
+    this._eat('new');
+    return {
+      type: 'NewExpression',
+      callee: this.MemberExpression(),
+      arguments: this.Arguments()
+    }
+  }
+
+  /**
+   * ThisExpression
+   *   : 'this'
+   *   ;
+   */
+  ThisExpression() {
+    this._eat('this');
+    return {
+      type: 'ThisExpression',
+    }
+  }
+
+  /**
+   * Super
+   *   : 'super'
+   *   ;
+   */
+  Super() {
+    this._eat('super');
+    return {
+      type: 'Super'
     }
   }
 

@@ -1,6 +1,6 @@
 const { Parser } = require('../src/Parser');
 const assert = require('assert');
-
+require('util').inspect.defaultOptions.depth = null;
 const parser = new Parser();
 
 const tests = [
@@ -20,11 +20,14 @@ const tests = [
   require('./do-while-test'),
   require('./for-test'),
   require('./function-declaration-test'),
+  require('./member-test'),
+  require('./call-test'),
+  require('./class-test'),
 ];
 
 const test = (program, expected) => {
   const ast = parser.parse(program);
-  assert.deepEqual(ast, expected);
+  assert.deepStrictEqual(ast, expected);
 }
 
 tests.forEach(t => t(test));

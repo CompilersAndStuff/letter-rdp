@@ -20,6 +20,12 @@ const Spec = [
   //Comma delimiter
   [/^,/, ','],
 
+  //Member/Arr
+  [/^\./, '.'],
+  [/^\[/, '['],
+  [/^\]/, ']'],
+
+
   // Keywords:
   [/^\blet\b/, 'let'],
   [/^\bif\b/, 'if'],
@@ -32,6 +38,11 @@ const Spec = [
   [/^\bfor\b/, 'for'],
   [/^\bdef\b/, 'def'],
   [/^\breturn\b/, 'return'],
+  [/^\bclass\b/, 'class'],
+  [/^\bnew\b/, 'new'],
+  [/^\bsuper\b/, 'super'],
+  [/^\bextends\b/, 'extends'],
+  [/^\bthis\b/, 'this'],
 
   //Number
   [/^\d+/, 'NUMBER'],
