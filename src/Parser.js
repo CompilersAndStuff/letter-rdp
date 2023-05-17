@@ -677,15 +677,19 @@ class Parser {
    *   | CallExpression
    *   ;
    */
-  CallMemberExpression() {
+  CallMemberExpression(obj) {
     if (this._lookahead.type === 'super') {
       return this._CallExpression(this.Super());
     }
 
-    const member = this.MemberExpression();
+    const member = this.MemberExpression(obj);
 
     if (this._lookahead.type === '(') {
-      return this._CallExpression(member);
+      const obj  = this._CallExpression(member);
+      if (this._lookahead.type === '.'){
+        return this.CallMemberExpression(obj);
+      }
+      return obj
     }
 
     return member;
@@ -751,8 +755,8 @@ class Parser {
    *   | MemberExpression '[' Expression ']'
    *   ;
    */
-  MemberExpression() {
-    let object = this.PrimaryExpression();
+  MemberExpression(obj) {
+    let object = obj || this.PrimaryExpression();
 
     while (this._lookahead.type === '.' || this._lookahead.type === '[') {
       if (this._lookahead.type === '.') {
