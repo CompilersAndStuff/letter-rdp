@@ -420,27 +420,76 @@ class Parser {
    *   ;
    */
   Expression() {
-    return this.AssignmentExpression();
+    return this.SequenceExpression();
+  }
+
+  /**
+   * SequenceExpression
+   *   : AssignmentExpression
+   *   | AssignmentExpression ',' SequenceExpression
+   *   ;
+   */
+  SequenceExpression() {
+    const left = this.AssignmentExpression();
+    if (this._lookahead && this._lookahead.type === ',') {
+      const expressions = [left];
+      while (this._lookahead.type === ',' && this._eat(',')) {
+        expressions.push(this.Expression());
+      }
+
+      return {
+        type: 'SequenceExpression',
+        expressions
+      }
+    }
+
+    return left;
   }
 
   /**
    * AssignmentExpression
+   *   : ArrowFunctionExpression
    *   : LogicalORExpression
    *   ; LeftHandSideExpression AssignmentOperator AssignmentExpression
    */
   AssignmentExpression() {
     const left = this.LogicalORExpression();
 
-    if (!this._isAssignmentOperator(this._lookahead.type)) {
+    if (!this._isAssignmentOperator(this._lookahead.type)
+        &&
+        !this._isArrowFunctionOperator(this._lookahead.type)) {
       return left;
     }
 
-    return {
-      type: 'AssignmentExpression',
-      operator: this.AssignmentOpertator().value,
-      left: this._checkValidAssignmentTarget(left),
-      right: this.AssignmentExpression(),
+    if (this._isArrowFunctionOperator(this._lookahead.type)){
+      this._eat('ARROW_FUNCTION');
+      let args = this._checkValidArrowFunctionArgsList(left)
+      return {
+        type: 'ArrowFunctionExpression',
+        arguments: args.expression ? args.expression : args,
+        body: this._lookahead.type === '{' ? this.BlockStatement() : this.Expression()
+      }
+    } else {
+      return {
+        type: 'AssignmentExpression',
+        operator: this.AssignmentOpertator().value,
+        left: this._checkValidAssignmentTarget(left),
+        right: this.AssignmentExpression(),
+      }
     }
+
+  }
+
+  _checkValidArrowFunctionArgsList(node) {
+    if (node.type === 'Identifier' || node.expressions.every(n => n.type === 'Identifier')) {
+      return node;
+    }
+
+    throw new SyntaxError('Invalid arrow function args-list');
+  }
+
+  _isArrowFunctionOperator(tokenType) {
+    return tokenType === 'ARROW_FUNCTION';
   }
 
   /**
@@ -689,7 +738,7 @@ class Parser {
     const argumentList = [];
 
     do {
-      argumentList.push(this.Expression());
+      argumentList.push(this.AssignmentExpression());
     } while (this._lookahead.type === ',' && this._eat(','))
 
     return argumentList;

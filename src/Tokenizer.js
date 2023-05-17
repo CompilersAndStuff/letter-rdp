@@ -25,7 +25,6 @@ const Spec = [
   [/^\[/, '['],
   [/^\]/, ']'],
 
-
   // Keywords:
   [/^\blet\b/, 'let'],
   [/^\bif\b/, 'if'],
@@ -53,6 +52,7 @@ const Spec = [
   [/^[=!]=/, 'EQUALITY_OPERATOR'],
 
   // Assignment operators
+  [/^=>/, 'ARROW_FUNCTION'],
   [/^=/, 'SIMPLE_ASSIGN'],
   [/^[\*\/\+\-]=/, 'COMPLEX_ASSIGN'],
 
